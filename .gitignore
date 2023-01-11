@@ -137,6 +137,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+
 # Project specific
 .idea/*
 data/*
@@ -147,3 +148,6 @@ outputs/*
 tests/data/*
 tests/tmp/*
 generated
+
+.DS_Store
+.vscode
