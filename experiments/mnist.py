@@ -277,7 +277,7 @@ def consistency_examples(
     )
     plt.savefig(save_dir / "similarity_rates.pdf")
 
-
+# Section 4.2
 def pretext_task_sensitivity(
     random_seed: int = 1,
     batch_size: int = 300,
@@ -349,7 +349,8 @@ def pretext_task_sensitivity(
             # Compute feature importance
             logging.info("Computing feature importance")
             baseline_image = torch.zeros((1, 1, 28, 28), device=device)
-            gradshap = GradientShap(encoder)
+            #gradshap = GradientShap(encoder)
+            gradshap = IntegratedGradients(encoder)
             feature_importance.append(
                 np.abs(
                     np.expand_dims(
@@ -377,7 +378,8 @@ def pretext_task_sensitivity(
         baseline_image = torch.zeros((1, 1, 28, 28), device=device)
         # Compute feature importance for the classifier
         logging.info("Computing feature importance")
-        gradshap = GradientShap(encoder)
+        #gradshap = GradientShap(encoder)
+        gradshap = IntegratedGradients(encoder)
         feature_importance.append(
             np.abs(
                 np.expand_dims(
