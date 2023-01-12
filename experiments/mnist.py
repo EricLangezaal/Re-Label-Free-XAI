@@ -363,7 +363,7 @@ def pretext_task_sensitivity(
             )
             # Compute example importance
             logging.info("Computing example importance")
-            dknn = NearestNeighbours(model.cpu(), X_train, mse_loss)
+            dknn = NearestNeighbours(model.cpu(), mse_loss, X_train)
             example_importance.append(
                 np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
             )
@@ -392,7 +392,7 @@ def pretext_task_sensitivity(
         )
         # Compute example importance for the classifier
         logging.info("Computing example importance")
-        dknn = NearestNeighbours(classifier.cpu(), X_train, mse_loss)
+        dknn = NearestNeighbours(classifier.cpu(), mse_loss, X_train)
         example_importance.append(
             np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
         )
