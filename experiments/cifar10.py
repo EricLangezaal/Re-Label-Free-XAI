@@ -9,11 +9,12 @@ import pandas as pd
 import seaborn as sns
 import torch
 from captum.attr import GradientShap, IntegratedGradients, Saliency
-from models.images import SimCLR
+from lfxai.models.images import SimCLR
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import GaussianBlur, ToTensor
+from torchvision.models import resnet18, resnet34
 
 from lfxai.explanations.examples import NearestNeighbours, SimplEx
 from lfxai.explanations.features import attribute_auxiliary
