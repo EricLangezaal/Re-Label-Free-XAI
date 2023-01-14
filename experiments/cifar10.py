@@ -35,7 +35,7 @@ def fit_model(args: DictConfig):
 
 def consistency_feature_importance(args: DictConfig):
     torch.manual_seed(args.seed)
-    save_dir = Path.cwd() / "consistency_features"
+    save_dir = Path.cwd() / "results/cifar10/consistency_features"
     if not save_dir.exists():
         os.makedirs(save_dir)
     model_path = Path.cwd() / f"models/simclr_{args.backbone}_epoch{args.epochs}.pt"
@@ -121,7 +121,7 @@ def consistency_feature_importance(args: DictConfig):
 
 def consistency_example_importance(args: DictConfig):
     torch.manual_seed(args.seed)
-    save_dir = Path.cwd() / "consistency_examples"
+    save_dir = Path.cwd() / "results/cifar10/consistency_examples"
     if not save_dir.exists():
         os.makedirs(save_dir)
     model_path = Path.cwd() / f"models/simclr_{args.backbone}_epoch{args.epochs}.pt"
