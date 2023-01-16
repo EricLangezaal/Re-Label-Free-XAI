@@ -1,8 +1,8 @@
 import logging
+import argparse
 import os
 from pathlib import Path
 
-import hydra
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -10,7 +10,6 @@ import seaborn as sns
 import torch
 from captum.attr import GradientShap, IntegratedGradients, Saliency
 from lfxai.models.images import SimCLR
-from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import GaussianBlur, ToTensor
@@ -22,7 +21,7 @@ from lfxai.utils.feature_attribution import generate_masks
 from lfxai.utils.metrics import similarity_rates
 
 
-def fit_model(args: DictConfig):
+def fit_model(args):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     # Prepare model
     torch.manual_seed(args.seed)
@@ -33,7 +32,7 @@ def fit_model(args: DictConfig):
     model.fit(args, device)
 
 
-def consistency_feature_importance(args: DictConfig):
+def consistency_feature_importance(args):
     torch.manual_seed(args.seed)
     save_dir = Path.cwd() / "results/cifar10/consistency_features"
     if not save_dir.exists():
@@ -62,7 +61,7 @@ def consistency_feature_importance(args: DictConfig):
     W = 32
     test_batch_size = int(args.batch_size / 20)
     encoder = model.encoder
-    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    data_dir = Path.cwd() / args.data_dir
     test_set = CIFAR10(data_dir, False, transform=ToTensor())
     test_loader = DataLoader(test_set, test_batch_size)
     attr_methods = {
@@ -119,7 +118,7 @@ def consistency_feature_importance(args: DictConfig):
     plt.close()
 
 
-def consistency_example_importance(args: DictConfig):
+def consistency_example_importance(args):
     torch.manual_seed(args.seed)
     save_dir = Path.cwd() / "results/cifar10/consistency_examples"
     if not save_dir.exists():
@@ -144,7 +143,7 @@ def consistency_example_importance(args: DictConfig):
 
     # Compute feature importance
     test_batch_size = int(args.batch_size / 20)
-    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    data_dir = Path.cwd() / args.data_dir
     train_set = CIFAR10(data_dir, False, transform=ToTensor())
     train_indices = torch.randperm(len(train_set))[:1000]
     train_subset = Subset(train_set, train_indices)
@@ -197,15 +196,34 @@ def consistency_example_importance(args: DictConfig):
     plt.savefig(save_dir / "cifar10_similarity_rates.pdf")
 
 
-@hydra.main(config_name="simclr_config.yaml", config_path=str(Path.cwd()))
-def main(args: DictConfig):
-    if args.experiment_name == "consistency_features":
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", type=str, default="data/cifar10")
+    parser.add_argument("--name", type=str, default="consistency_features")
+
+    parser.add_argument("--backbone", type=str, default="resnet18")
+    parser.add_argument("--projection_dim", type=int, default=128)
+
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--log_interval", type=int, default=5)
+    
+    parser.add_argument("--optimizer", type=str, default="sgd")
+    parser.add_argument("--learning_rate", type=float, default=0.6)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--weight_decay", type=float, default=1.0e-6)
+    parser.add_argument("--temperature", type=float, default=0.5)
+
+    args = parser.parse_args()
+
+    if args.name == "consistency_features":
         consistency_feature_importance(args)
-    elif args.experiment_name == "consistency_examples":
+    elif args.name == "consistency_examples":
         consistency_example_importance(args)
     else:
         raise ValueError("Invalid experiment name")
-
-
-if __name__ == "__main__":
-    main()
