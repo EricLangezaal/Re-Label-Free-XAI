@@ -4,11 +4,9 @@ import math
 import pathlib
 from pathlib import Path
 
-import hydra
 import numpy as np
 import torch
 import torch.nn.functional as F
-from omegaconf import DictConfig
 from torch import nn
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
@@ -1116,7 +1114,7 @@ class SimCLR(nn.Module):
         color_distort = transforms.Compose([rnd_color_jitter, rnd_gray])
         return color_distort
 
-    def fit(self, args: DictConfig, device: torch.device) -> None:
+    def fit(self, args, device: torch.device) -> None:
         logger = logging.getLogger(__name__)
 
         train_transform = transforms.Compose(
@@ -1127,9 +1125,7 @@ class SimCLR(nn.Module):
                 transforms.ToTensor(),
             ]
         )
-        data_dir = hydra.utils.to_absolute_path(
-            args.data_dir
-        )  # get absolute path of data dir
+        data_dir = Path.cwd() / args.data_dir  # get absolute path of data dir
         train_set = CIFAR10Pair(
             root=data_dir, train=True, transform=train_transform, download=True
         )
