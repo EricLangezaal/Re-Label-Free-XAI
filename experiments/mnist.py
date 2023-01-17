@@ -277,7 +277,7 @@ def consistency_examples(
     )
     plt.savefig(save_dir / "similarity_rates.pdf")
 
-
+# Section 4.2
 def pretext_task_sensitivity(
     random_seed: int = 1,
     batch_size: int = 300,
@@ -287,6 +287,8 @@ def pretext_task_sensitivity(
     patience: int = 10,
     subtrain_size: int = 1000,
     n_plots: int = 10,
+    feat_attr_method_name: str = "GradientShap",
+    example_attr_name: str = "DKNN"
 ) -> None:
     # Initialize seed and device
     np.random.seed(random_seed)
@@ -333,6 +335,22 @@ def pretext_task_sensitivity(
     example_pearson = np.zeros((n_runs, n_tasks, n_tasks))
     example_spearman = np.zeros((n_runs, n_tasks, n_tasks))
 
+    feature_attr_methods = {
+        "GradientShap": GradientShap,
+        "IntegratedGradients": IntegratedGradients,
+        "Saliency": Saliency,
+        "Random": None
+    }
+    feature_attr_method = feature_attr_methods[feat_attr_method_name]
+   
+    example_attrs = {
+        "InfluenceFunctions": InfluenceFunctions,
+        "TracIn": TracIn,
+        "SimplEx": SimplEx,
+        "DKNN": NearestNeighbours
+    }
+    example_attr = example_attrs[example_attr_name]
+
     for run in range(n_runs):
         feature_importance = []
         example_importance = []
@@ -349,12 +367,16 @@ def pretext_task_sensitivity(
             # Compute feature importance
             logging.info("Computing feature importance")
             baseline_image = torch.zeros((1, 1, 28, 28), device=device)
-            gradshap = GradientShap(encoder)
+            if feature_attr_method is None:
+                np.random.seed(random_seed)
+                attribution = np.random.randn(len(test_dataset), 1, W, W)
+            else:
+                attribution = feature_attr_method(encoder)
             feature_importance.append(
                 np.abs(
                     np.expand_dims(
                         attribute_auxiliary(
-                            encoder, test_loader, device, gradshap, baseline_image
+                            encoder, test_loader, device, attribution, baseline_image
                         ),
                         0,
                     )
@@ -362,9 +384,9 @@ def pretext_task_sensitivity(
             )
             # Compute example importance
             logging.info("Computing example importance")
-            dknn = NearestNeighbours(model.cpu(), mse_loss, X_train)
+            attr_method = example_attr(model.cpu(), mse_loss, X_train)
             example_importance.append(
-                np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
+                np.expand_dims(attr_method.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
             )
 
         # Create and fit a MNIST classifier
@@ -377,12 +399,16 @@ def pretext_task_sensitivity(
         baseline_image = torch.zeros((1, 1, 28, 28), device=device)
         # Compute feature importance for the classifier
         logging.info("Computing feature importance")
-        gradshap = GradientShap(encoder)
+        if feature_attr_method is None:
+            np.random.seed(random_seed)
+            attribution = np.random.randn(len(test_dataset), 1, W, W)
+        else:
+            attribution = feature_attr_method(encoder)
         feature_importance.append(
             np.abs(
                 np.expand_dims(
                     attribute_auxiliary(
-                        encoder, test_loader, device, gradshap, baseline_image
+                        encoder, test_loader, device, attribution, baseline_image
                     ),
                     0,
                 )
@@ -390,9 +416,9 @@ def pretext_task_sensitivity(
         )
         # Compute example importance for the classifier
         logging.info("Computing example importance")
-        dknn = NearestNeighbours(classifier.cpu(), mse_loss, X_train)
+        attr_method = example_attr(classifier.cpu(), mse_loss, X_train)
         example_importance.append(
-            np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
+            np.expand_dims(attr_method.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
         )
 
         # Compute correlation between the saliency of different pretext tasks
@@ -702,6 +728,9 @@ if __name__ == "__main__":
     parser.add_argument("--n_runs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=300)
     parser.add_argument("--random_seed", type=int, default=1)
+    parser.add_argument("--feature_attr_method", default="GradientShap", choices=["IntegratedGradients", "GradientShap", "Saliency", "Random"])
+    parser.add_argument("--example_attr_method", default="DKNN", choices=["InfluenceFunctions", "TracIn", "SimplEx", "DKNN"])
+
     args = parser.parse_args()
     if args.name == "disvae":
         disvae_feature_importance(
@@ -709,7 +738,8 @@ if __name__ == "__main__":
         )
     elif args.name == "pretext":
         pretext_task_sensitivity(
-            n_runs=args.n_runs, batch_size=args.batch_size, random_seed=args.random_seed
+            n_runs=args.n_runs, batch_size=args.batch_size, random_seed=args.random_seed,
+            feat_attr_method_name=args.feature_attr_method, example_attr_name=args.example_attr_method
         )
     elif args.name == "consistency_features":
         consistency_feature_importance(
