@@ -287,7 +287,7 @@ def pretext_task_sensitivity(
     patience: int = 10,
     subtrain_size: int = 1000,
     n_plots: int = 10,
-    feat_attr_method_name: str = "IntegratedGradients",
+    feat_attr_method_name: str = "GradientShap",
     example_attr_name: str = "DKNN"
 ) -> None:
     # Initialize seed and device
@@ -728,8 +728,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_runs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=300)
     parser.add_argument("--random_seed", type=int, default=1)
-    parser.add_argument("--feature_attr_method", choices=["IntegratedGradients", "GradientShap", "Saliency", "Random"])
-    parser.add_argument("--example_attr_method", choices=["InfluenceFunctions", "TracIn", "SimplEx", "DKNN"])
+    parser.add_argument("--feature_attr_method", default="GradientShap", choices=["IntegratedGradients", "GradientShap", "Saliency", "Random"])
+    parser.add_argument("--example_attr_method", default="DKNN", choices=["InfluenceFunctions", "TracIn", "SimplEx", "DKNN"])
 
     args = parser.parse_args()
     if args.name == "disvae":
