@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from tqdm.contrib.itertools import product
 
 from lfxai.utils.influence import hessian_vector_product, stack_torch_tensors
 
@@ -198,14 +197,15 @@ class InfluenceFunctions(ExampleBasedExplainer, ABC):
             ihvp = ihvp / (scale * len(train_loader))  # Rescale Hessian-Vector products
             torch.save(ihvp.detach().cpu(), self.save_dir / f"train_ihvp{train_idx}.pt")
 
-        for test_idx, train_idx in product(
-            range(len(test_loader)), range(len(train_loader)), leave=False
-        ):
-            ihvp = torch.load(self.save_dir / f"train_ihvp{train_idx}.pt")
+        for test_idx in range(len(test_loader)):
             test_grad = torch.load(self.save_dir / f"test_grad{test_idx}.pt")
-            attribution[test_idx, train_idx] = (
-                torch.dot(test_grad.flatten(), ihvp.flatten()).detach().clone().cpu()
-            )
+
+            for train_idx in range(len(train_loader)):
+
+                ihvp = torch.load(self.save_dir / f"train_ihvp{train_idx}.pt")
+                attribution[test_idx, train_idx] = (
+                    torch.dot(test_grad.flatten(), ihvp.flatten()).detach().clone().cpu()
+                )
         return attribution
 
     def __str__(self):
@@ -306,20 +306,21 @@ class TracIn(ExampleBasedExplainer, ABC):
                     self.save_dir
                     / f"test_checkpoint{checkpoint_number}_grad{test_idx}.pt",
                 )
-            for test_idx, train_idx in product(
-                range(len(test_loader)), range(len(train_loader)), leave=False
-            ):
-                train_grad = torch.load(
-                    self.save_dir
-                    / f"train_checkpoint{checkpoint_number}_grad{train_idx}.pt"
-                )
+
+            for test_idx in range(len(test_loader)):
                 test_grad = torch.load(
                     self.save_dir
                     / f"test_checkpoint{checkpoint_number}_grad{test_idx}.pt"
                 )
-                attribution[test_idx, train_idx] += torch.dot(
-                    train_grad.flatten(), test_grad.flatten()
-                )
+                for train_idx in range(len(train_loader)):
+                    train_grad = torch.load(
+                        self.save_dir
+                        / f"train_checkpoint{checkpoint_number}_grad{train_idx}.pt"
+                    )
+                    attribution[test_idx, train_idx] += torch.dot(
+                        train_grad.flatten(), test_grad.flatten()
+                    )
+
         return attribution
 
     def __str__(self):
