@@ -3,7 +3,6 @@ import argparse
 import os
 from pathlib import Path
 
-import hydra
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -62,7 +61,7 @@ def consistency_feature_importance(args):
     W = 32
     test_batch_size = int(args.batch_size / 20)
     encoder = model.encoder
-    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    data_dir = Path.cwd() / args.data_dir
     test_set = CIFAR10(data_dir, False, transform=ToTensor())
     test_loader = DataLoader(test_set, test_batch_size)
     attr_methods = {
@@ -144,7 +143,7 @@ def consistency_example_importance(args):
 
     # Compute feature importance
     test_batch_size = int(args.batch_size / 20)
-    data_dir = hydra.utils.to_absolute_path(args.data_dir)
+    data_dir = Path.cwd() / args.data_dir
     train_set = CIFAR10(data_dir, False, transform=ToTensor())
     train_indices = torch.randperm(len(train_set))[:1000]
     train_subset = Subset(train_set, train_indices)

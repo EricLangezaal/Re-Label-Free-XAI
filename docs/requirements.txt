@@ -1,7 +1,6 @@
 torch
 torchvision
 captum
-hydra-core
 numpy
 pandas
 scikit-image
