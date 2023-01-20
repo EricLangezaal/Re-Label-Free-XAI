@@ -151,3 +151,7 @@ generated
 
 .DS_Store
 .vscode
+*.job
+*.out
+*.sh
+*.pt

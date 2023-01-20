@@ -53,12 +53,17 @@ from lfxai.utils.visualize import (
     vae_box_plots,
 )
 
+from lfxai.models.scae import (
+    SCAE,
+    PCAE,
+    OCAE
+)
 
 def consistency_feature_importance(
     random_seed: int = 1,
     batch_size: int = 200,
     dim_latent: int = 4,
-    n_epochs: int = 100,
+    n_epochs: int = 100
 ) -> None:
     # Initialize seed and device
     torch.random.manual_seed(random_seed)
@@ -277,7 +282,7 @@ def consistency_examples(
     )
     plt.savefig(save_dir / "similarity_rates.pdf")
 
-
+# Section 4.2
 def pretext_task_sensitivity(
     random_seed: int = 1,
     batch_size: int = 300,
@@ -287,6 +292,9 @@ def pretext_task_sensitivity(
     patience: int = 10,
     subtrain_size: int = 1000,
     n_plots: int = 10,
+    use_pretrained: bool = False,
+    feat_attr_method_name: str = "GradientShap",
+    example_attr_name: str = "DKNN"
 ) -> None:
     # Initialize seed and device
     np.random.seed(random_seed)
@@ -325,75 +333,95 @@ def pretext_task_sensitivity(
     # Define the computed metrics and create a csv file with appropriate headers
     pretext_list = [Identity(), RandomNoise(noise_level=0.3), Mask(mask_proportion=0.2)]
     headers = [str(pretext) for pretext in pretext_list] + [
-        "Classification"
+        "Classification",
+        "SCAE"
     ]  # Name of each task
-    n_tasks = len(pretext_list) + 1
+
+    n_tasks = len(headers)
     feature_pearson = np.zeros((n_runs, n_tasks, n_tasks))
     feature_spearman = np.zeros((n_runs, n_tasks, n_tasks))
     example_pearson = np.zeros((n_runs, n_tasks, n_tasks))
     example_spearman = np.zeros((n_runs, n_tasks, n_tasks))
 
+    feature_attr_methods = {
+        "GradientShap": GradientShap,
+        "IntegratedGradients": IntegratedGradients,
+        "Saliency": Saliency,
+        "Random": None
+    }
+    feature_attr_method = feature_attr_methods[feat_attr_method_name]
+   
+    example_attrs = {
+        "InfluenceFunctions": InfluenceFunctions,
+        "TracIn": TracIn,
+        "SimplEx": SimplEx,
+        "DKNN": NearestNeighbours
+    }
+    example_attr = example_attrs[example_attr_name]
+
+
+    def fit_and_calc_importance(name, use_pretrained, encoder, model):
+        if not use_pretrained:
+            logging.info(f"Now fitting {name}")
+            model.fit(device, train_loader, test_loader, save_dir, n_epochs, patience)
+        else:
+            model.to(device)
+        model.load_state_dict(torch.load(save_dir / (name + ".pt")), strict=False)
+
+        logging.info("Computing feature importance")
+        baseline_image = torch.zeros((1, 1, 28, 28), device=device)
+        if feature_attr_method is None:
+            np.random.seed(random_seed)
+            attribution = np.random.randn(len(test_dataset), 1, W, W)
+        else:
+            attribution = feature_attr_method(encoder)
+        
+        feat_importance = np.abs(
+            np.expand_dims(
+                attribute_auxiliary(
+                    encoder, test_loader, device, attribution, baseline_image
+                ),
+                0,
+            )
+        )
+
+        logging.info("Computing example importance")
+        attr_method = example_attr(model.cpu(), mse_loss, X_train)
+        example_importance = np.expand_dims(attr_method.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
+        return feat_importance, example_importance
+
+
     for run in range(n_runs):
         feature_importance = []
         example_importance = []
         # Perform the experiment with several autoencoders trained on different pretext tasks.
+
         for pretext in pretext_list:
             # Create and fit an autoencoder for the pretext task
             name = f"{str(pretext)}-ae_run{run}"
             encoder = EncoderMnist(dim_latent)
             decoder = DecoderMnist(dim_latent)
             model = AutoEncoderMnist(encoder, decoder, dim_latent, pretext, name)
-            logging.info(f"Now fitting {name}")
-            model.fit(device, train_loader, test_loader, save_dir, n_epochs, patience)
-            model.load_state_dict(torch.load(save_dir / (name + ".pt")), strict=False)
-            # Compute feature importance
-            logging.info("Computing feature importance")
-            baseline_image = torch.zeros((1, 1, 28, 28), device=device)
-            gradshap = GradientShap(encoder)
-            feature_importance.append(
-                np.abs(
-                    np.expand_dims(
-                        attribute_auxiliary(
-                            encoder, test_loader, device, gradshap, baseline_image
-                        ),
-                        0,
-                    )
-                )
-            )
-            # Compute example importance
-            logging.info("Computing example importance")
-            dknn = NearestNeighbours(model.cpu(), mse_loss, X_train)
-            example_importance.append(
-                np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
-            )
+            feat, example = fit_and_calc_importance(name, use_pretrained, encoder, model)
+            feature_importance.append(feat)
+            example_importance.append(example)
 
-        # Create and fit a MNIST classifier
+        # # Create and fit a MNIST classifier
         name = f"Classifier_run{run}"
         encoder = EncoderMnist(dim_latent)
-        classifier = ClassifierMnist(encoder, dim_latent, name)
-        logging.info(f"Now fitting {name}")
-        classifier.fit(device, train_loader, test_loader, save_dir, n_epochs, patience)
-        classifier.load_state_dict(torch.load(save_dir / (name + ".pt")), strict=False)
-        baseline_image = torch.zeros((1, 1, 28, 28), device=device)
-        # Compute feature importance for the classifier
-        logging.info("Computing feature importance")
-        gradshap = GradientShap(encoder)
-        feature_importance.append(
-            np.abs(
-                np.expand_dims(
-                    attribute_auxiliary(
-                        encoder, test_loader, device, gradshap, baseline_image
-                    ),
-                    0,
-                )
-            )
-        )
-        # Compute example importance for the classifier
-        logging.info("Computing example importance")
-        dknn = NearestNeighbours(classifier.cpu(), mse_loss, X_train)
-        example_importance.append(
-            np.expand_dims(dknn.attribute(X_test, idx_subtrain).cpu().numpy(), 0)
-        )
+        model = ClassifierMnist(encoder, dim_latent, name)
+        feat, example = fit_and_calc_importance(name, use_pretrained, encoder, model)
+        feature_importance.append(feat)
+        example_importance.append(example)
+
+        # Create and fit a SCAE encoder 
+        name = f"SCAE_run{run}"
+        encoder = PCAE()
+        decoder = OCAE()
+        model = SCAE(encoder, decoder, name)
+        feat, example = fit_and_calc_importance(name, False, encoder, model)
+        feature_importance.append(feat)
+        example_importance.append(example)
 
         # Compute correlation between the saliency of different pretext tasks
         feature_importance = np.concatenate(feature_importance)
@@ -702,6 +730,9 @@ if __name__ == "__main__":
     parser.add_argument("--n_runs", type=int, default=5)
     parser.add_argument("--batch_size", type=int, default=300)
     parser.add_argument("--random_seed", type=int, default=1)
+    parser.add_argument("--feature_attr_method", default="GradientShap", choices=["IntegratedGradients", "GradientShap", "Saliency", "Random"])
+    parser.add_argument("--example_attr_method", default="DKNN", choices=["InfluenceFunctions", "TracIn", "SimplEx", "DKNN"])
+    parser.add_argument("--pretrained", action="store_true")
     args = parser.parse_args()
     if args.name == "disvae":
         disvae_feature_importance(
@@ -709,7 +740,9 @@ if __name__ == "__main__":
         )
     elif args.name == "pretext":
         pretext_task_sensitivity(
-            n_runs=args.n_runs, batch_size=args.batch_size, random_seed=args.random_seed
+            n_runs=args.n_runs, batch_size=args.batch_size, random_seed=args.random_seed,
+            use_pretrained=args.pretrained,
+            feat_attr_method_name=args.feature_attr_method, example_attr_name=args.example_attr_method
         )
     elif args.name == "consistency_features":
         consistency_feature_importance(

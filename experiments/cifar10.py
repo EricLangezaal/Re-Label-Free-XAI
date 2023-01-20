@@ -1,4 +1,5 @@
 import logging
+import argparse
 import os
 from pathlib import Path
 
@@ -9,11 +10,11 @@ import pandas as pd
 import seaborn as sns
 import torch
 from captum.attr import GradientShap, IntegratedGradients, Saliency
-from models.images import SimCLR
-from omegaconf import DictConfig
+from lfxai.models.images import SimCLR
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import GaussianBlur, ToTensor
+from torchvision.models import resnet18, resnet34
 
 from lfxai.explanations.examples import NearestNeighbours, SimplEx
 from lfxai.explanations.features import attribute_auxiliary
@@ -21,7 +22,7 @@ from lfxai.utils.feature_attribution import generate_masks
 from lfxai.utils.metrics import similarity_rates
 
 
-def fit_model(args: DictConfig):
+def fit_model(args):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     # Prepare model
     torch.manual_seed(args.seed)
@@ -32,9 +33,9 @@ def fit_model(args: DictConfig):
     model.fit(args, device)
 
 
-def consistency_feature_importance(args: DictConfig):
+def consistency_feature_importance(args):
     torch.manual_seed(args.seed)
-    save_dir = Path.cwd() / "consistency_features"
+    save_dir = Path.cwd() / "results/cifar10/consistency_features"
     if not save_dir.exists():
         os.makedirs(save_dir)
     model_path = Path.cwd() / f"models/simclr_{args.backbone}_epoch{args.epochs}.pt"
@@ -118,9 +119,9 @@ def consistency_feature_importance(args: DictConfig):
     plt.close()
 
 
-def consistency_example_importance(args: DictConfig):
+def consistency_example_importance(args):
     torch.manual_seed(args.seed)
-    save_dir = Path.cwd() / "consistency_examples"
+    save_dir = Path.cwd() / "results/cifar10/consistency_examples"
     if not save_dir.exists():
         os.makedirs(save_dir)
     model_path = Path.cwd() / f"models/simclr_{args.backbone}_epoch{args.epochs}.pt"
@@ -196,15 +197,35 @@ def consistency_example_importance(args: DictConfig):
     plt.savefig(save_dir / "cifar10_similarity_rates.pdf")
 
 
-@hydra.main(config_name="simclr_config.yaml", config_path=str(Path.cwd()))
-def main(args: DictConfig):
-    if args.experiment_name == "consistency_features":
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir", type=str, default="data/cifar10")
+    parser.add_argument("--name", type=str, default="consistency_features")
+
+    parser.add_argument("--backbone", type=str, default="resnet18")
+    parser.add_argument("--projection_dim", type=int, default=128)
+
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--log_interval", type=int, default=5)
+    
+    parser.add_argument("--optimizer", type=str, default="sgd")
+    parser.add_argument("--learning_rate", type=float, default=0.6)
+    parser.add_argument("--momentum", type=float, default=0.9)
+    parser.add_argument("--weight_decay", type=float, default=1.0e-6)
+    parser.add_argument("--temperature", type=float, default=0.5)
+
+    args = parser.parse_args()
+
+    if args.name == "consistency_features":
         consistency_feature_importance(args)
-    elif args.experiment_name == "consistency_examples":
+    elif args.name == "consistency_examples":
         consistency_example_importance(args)
     else:
         raise ValueError("Invalid experiment name")
 
-
-if __name__ == "__main__":
-    main()
