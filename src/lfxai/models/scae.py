@@ -99,7 +99,7 @@ class PCAE(nn.Module):
         self.to_tensor = tt.ToTensor()
         self.epsilon = torch.tensor(1e-6)
         
-    def forward(self,x,device,mode='train'):
+    def forward(self,x,mode='train',attribution=True):
         outputs = self.capsules(x)
         outputs = outputs.view(-1,self.num_capsules,self.num_feature_maps,*outputs.size()[2:]) #(B,M,24,2,2)
         attention = outputs[:,:,-1,:,:].unsqueeze(2)
@@ -108,14 +108,17 @@ class PCAE(nn.Module):
         part_capsule_param = torch.sum(torch.sum(feature_maps*attention_soft,dim=-1),dim=-1) #(B,M,23)
 
         if mode == 'train':
-            noise_1 = torch.FloatTensor(*part_capsule_param.size()[:2]).uniform_(-2,2).to(device)
+            noise_1 = torch.FloatTensor(*part_capsule_param.size()[:2]).uniform_(-2,2).to(x.device)
         else:
-            noise_1 = torch.zeros(*part_capsule_param.size()[:2]).to(device)
-        x_m,d_m,c_z = self.relu(part_capsule_param[:,:,:6]),self.sigmoid(part_capsule_param[:,:,6]+noise_1).view(*part_capsule_param.size()[:2],1),self.relu(part_capsule_param[:,:,7:])
+            noise_1 = torch.zeros(*part_capsule_param.size()[:2]).to(x.device)
+
+        x_m = self.relu(part_capsule_param[:,:,:6])
+        d_m = self.sigmoid(part_capsule_param[:,:,6]+noise_1).view(*part_capsule_param.size()[:2],1)
+        c_z = self.relu(part_capsule_param[:,:,7:])
 
         # Affine Transform
         B, _, _, target_size = x.size()
-        transformed_templates = [F.grid_sample(self.templates[i].repeat(B,1,1,1).to(device), # sce.to(device) could not transfrom self.templates to "cuda"
+        transformed_templates = [F.grid_sample(self.templates[i].repeat(B,1,1,1).to(x.device), # sce.to(device) could not transfrom self.templates to "cuda"
                                                F.affine_grid(
                                                    self.geometric_transform(x_m[:,i,:]),  # pose
                                                    torch.Size((B, 1, target_size, target_size)) # size
@@ -137,10 +140,13 @@ class PCAE(nn.Module):
         template_det = []
         for template in self.templates:
             template_det.append(template.data.view(1,-1))
-        template_detached = torch.cat(template_det,0).unsqueeze(0).expand(x_m_detach.shape[0],-1,-1).to(device) #(B,M,11*11)
+        template_detached = torch.cat(template_det,0).unsqueeze(0).expand(x_m_detach.shape[0],-1,-1).to(x.device) #(B,M,11*11)
         input_ocae = torch.cat([d_m_detach,x_m_detach,template_detached,c_z],-1) #(B,M,144)
         
-        return log_likelihood,input_ocae,x_m_detach,d_m_detach
+        if attribution:
+            return input_ocae.view(B, -1)
+        else:
+            return log_likelihood,input_ocae,x_m_detach,d_m_detach
 
     @staticmethod
     def geometric_transform(pose_tensor, similarity=False, nonlinear=True):
@@ -262,13 +268,13 @@ class OCAE(nn.Module):
 class SCAE(nn.Module):
     def __init__(self, encoder, decoder, name):
         super(SCAE,self).__init__()
-        self.pcae = encoder
-        self.ocae = decoder
+        self.encoder = encoder
+        self.decoder = decoder
         self.name = name
 
     def forward(self,x,device,mode):
-        image_likelihood,input_ocae,x_m,d_m = self.pcae(x,device,mode)
-        part_likelihood,a_k,a_kn,gaussian = self.ocae(input_ocae,x_m,d_m,device,mode)
+        image_likelihood,input_ocae,x_m,d_m = self.encoder(x,mode,attribution=False)
+        part_likelihood,a_k,a_kn,gaussian = self.decoder(input_ocae,x_m,d_m,device,mode)
         return image_likelihood,part_likelihood,a_k,a_kn,gaussian
 
     def fit(
@@ -281,6 +287,8 @@ class SCAE(nn.Module):
         patience: int = 10,
     ) -> None:
         self.to(device)
+        self.encoder.device = device
+        self.decoder.device = device
         total_loss = SCAE_LOSS()
         K = 24
         C = 10
@@ -296,7 +304,7 @@ class SCAE(nn.Module):
         for epoch in range(n_epoch):    
             ave_loss = 0
             self.train()
-            for batch_idx, (x, target) in tqdm(enumerate(train_loader)):
+            for _, (x, _) in tqdm(enumerate(train_loader)):
                 optimizer.zero_grad()
                 x = Variable(x).to(device)
                 out = self.forward(x,device,mode='train')
@@ -306,7 +314,6 @@ class SCAE(nn.Module):
                 ave_loss = ave_loss * 0.9 + loss.mean().data * 0.1
                 loss.mean().backward()
                 torch.nn.utils.clip_grad_norm_(self.parameters(),5)
-                #print(loss)
                 optimizer.step()
 
             logging.info(
@@ -350,7 +357,7 @@ class SCAE(nn.Module):
         count = 0 
         total_count = 0
         with torch.no_grad():
-            for batch_idx, (x, target) in tqdm(enumerate(test),desc='test'):
+            for _, (x, target) in tqdm(enumerate(test),desc='test'):
                 x = Variable(x).to(device)
                 target = Variable(target).to(device)
                 out = self.forward(x,device,mode='test')

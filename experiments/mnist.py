@@ -63,7 +63,7 @@ def consistency_feature_importance(
     random_seed: int = 1,
     batch_size: int = 200,
     dim_latent: int = 4,
-    n_epochs: int = 100,
+    n_epochs: int = 100
 ) -> None:
     # Initialize seed and device
     torch.random.manual_seed(random_seed)
@@ -406,7 +406,7 @@ def pretext_task_sensitivity(
             feature_importance.append(feat)
             example_importance.append(example)
 
-        # Create and fit a MNIST classifier
+        # # Create and fit a MNIST classifier
         name = f"Classifier_run{run}"
         encoder = EncoderMnist(dim_latent)
         model = ClassifierMnist(encoder, dim_latent, name)
