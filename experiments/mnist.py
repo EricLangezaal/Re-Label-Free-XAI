@@ -419,7 +419,7 @@ def pretext_task_sensitivity(
         encoder = PCAE()
         decoder = OCAE()
         model = SCAE(encoder, decoder, name)
-        feat, example = fit_and_calc_importance(name, False, encoder, model)
+        feat, example = fit_and_calc_importance(name, use_pretrained, encoder, model)
         feature_importance.append(feat)
         example_importance.append(example)
 
