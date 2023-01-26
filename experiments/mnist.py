@@ -53,11 +53,17 @@ from lfxai.utils.visualize import (
     vae_box_plots,
 )
 
+from lfxai.models.scae import (
+    SCAE,
+    PCAE,
+    OCAE
+)
+
 def consistency_feature_importance(
     random_seed: int = 1,
     batch_size: int = 200,
     dim_latent: int = 4,
-    n_epochs: int = 100,
+    n_epochs: int = 100
 ) -> None:
     # Initialize seed and device
     torch.random.manual_seed(random_seed)
@@ -328,6 +334,7 @@ def pretext_task_sensitivity(
     pretext_list = [Identity(), RandomNoise(noise_level=0.3), Mask(mask_proportion=0.2)]
     headers = [str(pretext) for pretext in pretext_list] + [
         "Classification",
+        "SCAE"
     ]  # Name of each task
 
     n_tasks = len(headers)
@@ -399,10 +406,19 @@ def pretext_task_sensitivity(
             feature_importance.append(feat)
             example_importance.append(example)
 
-        # Create and fit a MNIST classifier
+        # # Create and fit a MNIST classifier
         name = f"Classifier_run{run}"
         encoder = EncoderMnist(dim_latent)
         model = ClassifierMnist(encoder, dim_latent, name)
+        feat, example = fit_and_calc_importance(name, use_pretrained, encoder, model)
+        feature_importance.append(feat)
+        example_importance.append(example)
+
+        # Create and fit a SCAE encoder 
+        name = f"SCAE_run{run}"
+        encoder = PCAE()
+        decoder = OCAE()
+        model = SCAE(encoder, decoder, name)
         feat, example = fit_and_calc_importance(name, use_pretrained, encoder, model)
         feature_importance.append(feat)
         example_importance.append(example)

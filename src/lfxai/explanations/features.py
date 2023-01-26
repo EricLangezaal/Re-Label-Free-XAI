@@ -17,7 +17,7 @@ class AuxiliaryFunction(Module):
         elif len(input_features) % len(self.prediction) == 0:
             n_repeat = int(len(input_features) / len(self.prediction))
             return torch.sum(
-                self.prediction.repeat(n_repeat, 1) * self.black_box(input_features),
+                self.prediction.repeat(n_repeat, *np.repeat(1, self.prediction.dim() - 1)) * self.black_box(input_features),
                 dim=-1,
             )
         else:
