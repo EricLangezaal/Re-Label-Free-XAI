@@ -1,3 +1,12 @@
+"""
+The following code was taken from this github: https://github.com/google-research/google-research/tree/master/stacked_capsule_autoencoders .
+This is an  implementation of the Stacked Capsule Autoencoder (SCAE), 
+which was introduced in the in the following paper: A. R. Kosiorek, Sara Sabour, Y. W. Teh, and Geoffrey E. Hinton, "Stacked Capsule Autoencoders" (arXiv:1906.06818).
+We made alterations to the code for it to be apllicable to our research.
+
+"""
+
+
 import math
 
 import torch
