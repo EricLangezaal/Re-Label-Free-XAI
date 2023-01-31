@@ -93,8 +93,21 @@ where experiment_name can take the following values:
 | pretext              | Pretext task sensitivity<br/> use case (paper Section 4.2)                   |
 | disvae               | Challenging assumptions with <br/> disentangled VAEs (paper Section 4.3)     |
 
+#### Pretext Use Case
+Specifically for the pretext experiment, we made multiple additions, such that the following syntax can now be used:
+```shell
+python -m mnist --name pretext --feature_attr_method feature_method --example_attr_method example_method --pretrained
+```
+Where `--pretrained` uses pre-trained model checkpoints (only works if these are saved) to prevent repeated fitting on the same dataset.
+The other two command line arguments are detailed below, the default is highlighted in *italics*. 
 
-The resulting plots and data are saved [here](results/mnist).
+| feature_method       | example_method          |
+|----------------------|-------------------------|
+| IntegratedGradients  | InfluenceFunctions      |
+| *GradientShap*       | TracIn                  |
+| Saliency             | SimplEx                 |
+| Random               | *DKNN*                  |
+
 
 ### ECG5000 experiments
 Run the following script
@@ -110,16 +123,12 @@ where experiment_name can take the following values:
 
 
 
-The resulting plots and data are saved [here](results/ecg5000).
-
 ### CIFAR10 experiments
 Run the following script
 ```shell
-python -m cifar10
+python -m cifar10 --name experiment_name
 ```
-The experiment can be selected by changing the experiment_name
-parameter in [this file](simclr_config.yaml).
-The parameter can take the following values:
+where experiment_name can take the following values:
 
 | experiment_name      | description                                                                  |
 |----------------------|------------------------------------------------------------------------------|
@@ -127,14 +136,9 @@ The parameter can take the following values:
 | consistency_examples | Consistency check for label-free<br/> example importance (paper Section 4.1) |
 
 
-
-The resulting plots and data are saved [here](results/cifar10).
 ### dSprites experiment
 Run the following script
 ```shell
 python -m dsprites
 ```
 The experiment needs several hours to run since several VAEs are trained.
-The resulting plots and data are saved [here](results/dsprites).
-
-```
