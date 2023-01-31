@@ -1,3 +1,13 @@
+"""
+The following experiment is to showcase that unrolling the double loop created by TQDM's `product` function,
+which allowed us to properly cache model data when calculating the attribution in example importance methods,
+is able to speed up this loop by almost 50%. 
+
+Since this attribution loop is ran a million times in both the InfluenceFunctions and TracIn example importance methods,
+making it the major bottleneck for both methods, this led to a significant improvement in importance for both methods.
+
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
