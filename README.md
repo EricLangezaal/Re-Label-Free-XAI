@@ -1,21 +1,16 @@
-# Label-Free XAI
+# Reproducing Label-Free XAI
 [![Tests](https://github.com/vanderschaarlab/Label-Free-XAI/actions/workflows/test.yml/badge.svg)](https://github.com/vanderschaarlab/Label-Free-XAI/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.png)](https://opensource.org/licenses/MIT)
 [![Documentation Status](https://readthedocs.org/projects/lfxai/badge/?version=latest)](https://lfxai.readthedocs.io/en/latest/?badge=latest)
 
 ![image](https://github.com/vanderschaarlab/Label-Free-XAI/raw/main/docs/illustration.png "Label-Free Explainability")
 
-Code Author: Jonathan Crabbé ([jc2133@cam.ac.uk](mailto:jc2133@cam.ac.uk))
+Original Code Author: Jonathan Crabbé ([jc2133@cam.ac.uk](mailto:jc2133@cam.ac.uk))
 
-This repository contains the implementation of LFXAI, a framework to explain the latent
-representations of unsupervised black-box models with the help of usual feature importance and example-based methods.
-For more details, please read our [ICML 2022 paper](https://arxiv.org/abs/2203.01928): 'Label-Free Explainability for Unsupervised Models'.
+This repository contains the reproduction of LFXAI, a framework to explain the latent
+representations of unsupervised black-box models with the help of usual feature importance and example-based methods. The reproduction is used for a reproducability study for the ML Reproducibility Challenge 2022. This repository uses the original code of Jonathan Crabbé (found at https://github.com/vanderschaarlab/Label-Free-XAI) with some adjustments and additions. For more details, please read the original [ICML 2022 paper](https://arxiv.org/abs/2203.01928): 'Label-Free Explainability for Unsupervised Models'.
 
 ## 1. Installation
-From PyPI
-```bash
-pip install lfxai
-```
 
 From repository:
 1. Clone the repository
@@ -81,7 +76,7 @@ example_importance = attr_method.attribute_loader(device, train_subloader, test_
 
 
 
-## 3. Reproducing the paper results
+## 3. Reproducing our results
 
 ### MNIST experiments
 In the `experiments` folder, run the following script
@@ -141,25 +136,5 @@ python -m dsprites
 ```
 The experiment needs several hours to run since several VAEs are trained.
 The resulting plots and data are saved [here](results/dsprites).
-## 4. Citing
 
-If you use this code, please cite the associated paper:
-
-```
-
-@InProceedings{pmlr-v162-crabbe22a,
-  title = 	 {Label-Free Explainability for Unsupervised Models},
-  author =       {Crabb{\'e}, Jonathan and van der Schaar, Mihaela},
-  booktitle = 	 {Proceedings of the 39th International Conference on Machine Learning},
-  pages = 	 {4391--4420},
-  year = 	 {2022},
-  editor = 	 {Chaudhuri, Kamalika and Jegelka, Stefanie and Song, Le and Szepesvari, Csaba and Niu, Gang and Sabato, Sivan},
-  volume = 	 {162},
-  series = 	 {Proceedings of Machine Learning Research},
-  month = 	 {17--23 Jul},
-  publisher =    {PMLR},
-  pdf = 	 {https://proceedings.mlr.press/v162/crabbe22a/crabbe22a.pdf},
-  url = 	 {https://proceedings.mlr.press/v162/crabbe22a.html},
-  abstract = 	 {Unsupervised black-box models are challenging to interpret. Indeed, most existing explainability methods require labels to select which component(s) of the black-box’s output to interpret. In the absence of labels, black-box outputs often are representation vectors whose components do not correspond to any meaningful quantity. Hence, choosing which component(s) to interpret in a label-free unsupervised/self-supervised setting is an important, yet unsolved problem. To bridge this gap in the literature, we introduce two crucial extensions of post-hoc explanation techniques: (1) label-free feature importance and (2) label-free example importance that respectively highlight influential features and training examples for a black-box to construct representations at inference time. We demonstrate that our extensions can be successfully implemented as simple wrappers around many existing feature and example importance methods. We illustrate the utility of our label-free explainability paradigm through a qualitative and quantitative comparison of representation spaces learned by various autoencoders trained on distinct unsupervised tasks.}
-}
 ```
